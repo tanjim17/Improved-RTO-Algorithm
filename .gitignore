@@ -1,0 +1,15 @@
+# Ignore everything
+*
+
+# But not these files...
+!.gitignore
+
+# ...even if they are in subdirectories
+!*/
+
+# if the files to be tracked are in subdirectories
+!/scratch/rto-comp-demo.cc
+!/src/internet/model/tcp-socket-base.cc
+!/src/internet/model/tcp-socket-base.h
+!/src/internet/model/rtt-estimator.cc
+!/src/internet/model/rtt-estimator.h
