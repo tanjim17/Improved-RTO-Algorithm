@@ -120,6 +120,14 @@ TraceTxRx (int num_flows)
   Config::ConnectWithoutContext ("/NodeList/" + std::to_string(num_flows) + "/$ns3::TcpL4Protocol/SocketList/0/Rx", MakeCallback (&RxTracer));
 }
 
+static void
+SendBurst (Ptr<NetDevice> sourceDevice, Address& destination) {
+  for (uint16_t i = 0; i < 100; i++) {
+      Ptr<Packet> pkt = Create<Packet> (1000); // 1000 dummy bytes of data
+      sourceDevice->Send (pkt, destination, 0);
+  }
+}
+
 int main (int argc, char *argv[])
 {
   std::string transport_prot = "TcpWestwood";
@@ -322,6 +330,7 @@ int main (int argc, char *argv[])
 
   for (uint16_t i = 0; i < sources.GetN (); i++)
     {
+      Address addr (InetSocketAddress (sink_interfaces.GetAddress (i, 0), port));
       AddressValue remoteAddress (InetSocketAddress (sink_interfaces.GetAddress (i, 0), port));
       Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (tcp_adu_size));
       BulkSendHelper ftp ("ns3::TcpSocketFactory", Address ());
@@ -337,6 +346,7 @@ int main (int argc, char *argv[])
       sinkApp = sinkHelper.Install (sinks.Get (i));
       sinkApp.Start (Seconds (start_time * i));
       sinkApp.Stop (Seconds (stop_time));
+      Simulator::Schedule(Seconds(duration/2), &SendBurst, sourceDevices[i].Get(0), addr);
     }
 
   // Set up tracing if enabled

@@ -7,129 +7,43 @@
 #include "ns3/propagation-module.h"
 #include "ns3/sixlowpan-module.h"
 #include "ns3/lr-wpan-module.h"
+#include "ns3/csma-module.h"
 #include "ns3/flow-monitor-helper.h"
 #include "ns3/applications-module.h"
 
 using namespace ns3;
 
-double duration = 10;
-
-class MyApp : public Application
-{
-public:
-
-  MyApp();
-  virtual ~MyApp();
-
-  void Setup(Ptr<Socket> socket, Address address, uint32_t packetSize, DataRate dataRate);
-
-private:
-  virtual void StartApplication(void);
-  virtual void StopApplication(void);
-
-  void ScheduleTx(void);
-  void SendPacket(void);
-
-  Ptr<Socket>     m_socket;
-  Address         m_peer;
-  uint32_t        m_packetSize;
-  DataRate        m_dataRate;
-  EventId         m_sendEvent;
-  bool            m_running;
-  uint32_t        m_packetsSent;
-};
-
-MyApp::MyApp()
-  : m_socket(0),
-  m_peer(),
-  m_packetSize(0),
-  m_dataRate(0),
-  m_sendEvent(),
-  m_running(false),
-  m_packetsSent(0)
-{
-}
-
-MyApp::~MyApp()
-{
-  m_socket = 0;
-}
-
-void
-MyApp::Setup(Ptr<Socket> socket, Address address, uint32_t packetSize, DataRate dataRate)
-{
-  m_socket = socket;
-  m_peer = address;
-  m_packetSize = packetSize;
-  m_dataRate = dataRate;
-}
-
-void
-MyApp::StartApplication(void)
-{
-  m_running = true;
-  m_packetsSent = 0;
-  m_socket->Bind();
-  m_socket->Connect(m_peer);
-  SendPacket();
-}
-
-void
-MyApp::StopApplication(void)
-{
-  m_running = false;
-
-  if (m_sendEvent.IsRunning())
-  {
-    Simulator::Cancel(m_sendEvent);
-  }
-
-  if (m_socket)
-  {
-    m_socket->Close();
-  }
-}
-
-void
-MyApp::SendPacket(void)
-{
-  Ptr<Packet> packet = Create<Packet>(m_packetSize);
-  m_socket->Send(packet);
-
-  Time currTime = Simulator::Now();
-  if (currTime.GetSeconds() < duration) {
-    ScheduleTx();
-  }
-}
-
-void
-MyApp::ScheduleTx(void)
-{
-  if (m_running)
-  {
-    Time tNext(Seconds(m_packetSize * 8 / static_cast<double> (m_dataRate.GetBitRate())));
-    m_sendEvent = Simulator::Schedule(tNext, &MyApp::SendPacket, this);
-  }
-}
-
 int main(int argc, char** argv)
 {
   uint32_t nWsnNodes = 4;
-  uint32_t nFlows = 4;
-  uint packetsPerSec = 300;
-  uint maxRange = 100;
+  bool verbose = false;
+  uint maxRange = 90;
 
   Packet::EnablePrinting();
 
   CommandLine cmd(__FILE__);
-  cmd.AddValue("nNodes", "Number of nodes", nWsnNodes);
-  cmd.AddValue("nFlows", "Number of flows", nFlows);
-  cmd.AddValue("packetsPerSec", "Packets per second", packetsPerSec);
+  cmd.AddValue("nWsnNodes", "Number of nodes", nWsnNodes);
+  cmd.AddValue("verbose", "turn on log components", verbose);
   cmd.AddValue("maxRange", "Max coverage range", maxRange);
   cmd.Parse(argc, argv);
 
+  if (verbose)
+  {
+    // LogComponentEnable ("Ping6Application", LOG_LEVEL_ALL);
+    // LogComponentEnable ("LrWpanMac", LOG_LEVEL_ALL);
+    // LogComponentEnable ("LrWpanPhy", LOG_LEVEL_ALL);
+    // LogComponentEnable ("LrWpanNetDevice", LOG_LEVEL_ALL);
+    // LogComponentEnable ("SixLowPanNetDevice", LOG_LEVEL_ALL);
+  }
+  // LogComponentEnable("UdpEchoClientApplication", LOG_LEVEL_ALL);
+  // LogComponentEnable("UdpEchoServerApplication", LOG_LEVEL_ALL);
+
   NodeContainer wsnNodes;
   wsnNodes.Create(nWsnNodes);
+
+  // NodeContainer wiredNodes;
+  // wiredNodes.Create(1);
+  // wiredNodes.Add(wsnNodes.Get(0));
 
   MobilityHelper mobility;
   mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
@@ -152,17 +66,33 @@ int main(int argc, char** argv)
   channel->SetPropagationDelayModel(delayModel);
 
   LrWpanHelper lrWpanHelper;
+  // setting the channel in helper
   lrWpanHelper.SetChannel(channel);
+  // Add and install the LrWpanNetDevice for each node
   NetDeviceContainer lrwpanDevices = lrWpanHelper.Install(wsnNodes);
+
+  // Fake PAN association and short address assignment.
+  // This is needed because the lr-wpan module does not provide (yet)
+  // a full PAN association procedure.
   lrWpanHelper.AssociateToPan(lrwpanDevices, 0);
 
   InternetStackHelper internetv6;
   internetv6.Install(wsnNodes);
+  // internetv6.Install(wiredNodes.Get(0));
 
   SixLowPanHelper sixLowPanHelper;
   NetDeviceContainer sixLowPanDevices = sixLowPanHelper.Install(lrwpanDevices);
 
+  // CsmaHelper csmaHelper;
+  // NetDeviceContainer csmaDevices = csmaHelper.Install(wiredNodes);
+
   Ipv6AddressHelper ipv6;
+  // ipv6.SetBase(Ipv6Address("2001:cafe::"), Ipv6Prefix(64));
+  // Ipv6InterfaceContainer wiredDeviceInterfaces;
+  // wiredDeviceInterfaces = ipv6.Assign(csmaDevices);
+  // wiredDeviceInterfaces.SetForwarding(1, true);
+  // wiredDeviceInterfaces.SetDefaultRouteInAllNodes(1);
+
   ipv6.SetBase(Ipv6Address("2001:f00d::"), Ipv6Prefix(64));
   Ipv6InterfaceContainer wsnDeviceInterfaces;
   wsnDeviceInterfaces = ipv6.Assign(sixLowPanDevices);
@@ -176,74 +106,73 @@ int main(int argc, char** argv)
     dev->SetAttribute("MeshUnderRadius", UintegerValue(10));
   }
 
-  uint16_t sinkPort = 8080;
-  Address sinkAddress(Inet6SocketAddress(wsnDeviceInterfaces.GetAddress(0, 1), sinkPort));
-  PacketSinkHelper packetSinkHelper("ns3::TcpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), sinkPort));
-  ApplicationContainer sinkApps = packetSinkHelper.Install(wsnNodes.Get(0));
-  sinkApps.Start(Seconds(0));
-  sinkApps.Stop(Seconds(duration));
-  for (uint i = 1; i < nFlows; i++) {
-    Ptr<Socket> ns3TcpSocket = Socket::CreateSocket(wsnNodes.Get(i), TcpSocketFactory::GetTypeId());
-    Ptr<MyApp> app = CreateObject<MyApp>();
-    app->Setup(ns3TcpSocket, sinkAddress, 1e6 / (packetsPerSec * 8), DataRate("1Mbps"));
-    wsnNodes.Get(i)->AddApplication(app);
-    app->SetStartTime(Seconds(1));
-    app->SetStopTime(Seconds(duration));
+  UdpEchoServerHelper echoServer(9);
+
+  ApplicationContainer serverApps = echoServer.Install(wsnNodes.Get(0));
+  serverApps.Start(Seconds(1.0));
+  serverApps.Stop(Seconds(10.0));
+
+  for (uint i = 1; i < nWsnNodes; i++) {
+    UdpEchoClientHelper echoClient(wsnDeviceInterfaces.GetAddress(0, 1), 9);
+    echoClient.SetAttribute("MaxPackets", UintegerValue(500));
+    echoClient.SetAttribute("Interval", TimeValue(Seconds(1 / (double)100)));
+    echoClient.SetAttribute("PacketSize", UintegerValue(1024));
+
+    ApplicationContainer clientApps = echoClient.Install(wsnNodes.Get(i));
+    clientApps.Start(Seconds(2.0 + i * 0.1));
+    clientApps.Stop(Seconds(10.0 + i * 0.1));
   }
 
-  // UdpEchoServerHelper echoServer(9);
-  // ApplicationContainer serverApps = echoServer.Install(wsnNodes.Get(0));
-  // serverApps.Start(Seconds(0));
-  // serverApps.Stop(Seconds(duration));
-  // for (uint i = 1; i < nFlows; i++) {
-  //   UdpEchoClientHelper echoClient(wsnDeviceInterfaces.GetAddress(0, 1), 9);
-  //   echoClient.SetAttribute("MaxPackets", UintegerValue(5000));
-  //   echoClient.SetAttribute("Interval", TimeValue(Seconds(1 / (double)packetsPerSec)));
-  //   echoClient.SetAttribute("PacketSize", UintegerValue(1024));
+  // uint32_t packetSize = 10;
+  // uint32_t maxPacketCount = 5;
+  // Time interPacketInterval = Seconds(1.);
+  // Ping6Helper ping6;
 
-  //   ApplicationContainer clientApps = echoClient.Install(wsnNodes.Get(i));
-  //   clientApps.Start(Seconds(1));
-  //   clientApps.Stop(Seconds(duration));
-  // }
+  // ping6.SetLocal(wsnDeviceInterfaces.GetAddress(nWsnNodes - 1, 1));
+  // ping6.SetRemote(wiredDeviceInterfaces.GetAddress(0, 1));
 
-  Simulator::Stop(Seconds(duration));
+  // ping6.SetAttribute("MaxPackets", UintegerValue(maxPacketCount));
+  // ping6.SetAttribute("Interval", TimeValue(interPacketInterval));
+  // ping6.SetAttribute("PacketSize", UintegerValue(packetSize));
+  // ApplicationContainer apps = ping6.Install(wsnNodes.Get(nWsnNodes - 1));
+
+  // apps.Start(Seconds(1.0));
+  // apps.Stop(Seconds(10.0));
+
+  // AsciiTraceHelper ascii;
+  // lrWpanHelper.EnableAsciiAll(ascii.CreateFileStream("Ping-6LoW-lr-wpan-meshunder-lr-wpan.tr"));
+  // lrWpanHelper.EnablePcapAll(std::string("Ping-6LoW-lr-wpan-meshunder-lr-wpan"), true);
+
+  // csmaHelper.EnableAsciiAll(ascii.CreateFileStream("Ping-6LoW-lr-wpan-meshunder-csma.tr"));
+  // csmaHelper.EnablePcapAll(std::string("Ping-6LoW-lr-wpan-meshunder-csma"), true);
+
+  Simulator::Stop(Seconds(10+ nWsnNodes * 0.1));
 
   // Flow monitor
   FlowMonitorHelper flowHelper;
   Ptr<FlowMonitor> monitor;
-  monitor = flowHelper.InstallAll();
+  bool flow_monitor = true;
+  if (flow_monitor) {
+    monitor = flowHelper.InstallAll();
+  }
 
   Simulator::Run();
 
-  // metric calculation
-  double throughput = 0;
-  double endToEndDelay = 0;
-  int nPacketsSent = 0;
-  int nPacketsReceived = 0;
-  int nPacketsDropped = 0;
-  int flowCount = 0;
-  FlowMonitor::FlowStatsContainer stats = monitor->GetFlowStats();
-  for (auto iter = stats.begin(); iter != stats.end(); iter++) {
-    flowCount++;
-    if (flowCount % 2) {
-      throughput += iter->second.rxBytes / (1000 * (iter->second.timeLastRxPacket.GetSeconds()
-        - iter->second.timeFirstTxPacket.GetSeconds()));
-      endToEndDelay += iter->second.delaySum.GetSeconds();
-      nPacketsSent += iter->second.txPackets;
-      nPacketsReceived += iter->second.rxPackets;
-      nPacketsDropped += iter->second.lostPackets;
-
+  if (flow_monitor) {
+    FlowMonitor::FlowStatsContainer stats = monitor->GetFlowStats();
+    for (auto iter = stats.begin(); iter != stats.end(); iter++) {
       NS_LOG_UNCOND("Flow ID:" << iter->first);
       NS_LOG_UNCOND("Sent packets = " << iter->second.txPackets);
       NS_LOG_UNCOND("Received packets = " << iter->second.rxPackets);
-      NS_LOG_UNCOND("Dropped packets = " << iter->second.lostPackets);
-      NS_LOG_UNCOND("Delay sum = " << iter->second.delaySum.GetSeconds());
+      NS_LOG_UNCOND("Dropped packets = " << iter->second.txPackets - iter->second.rxPackets);
+      NS_LOG_UNCOND("Packet drop ratio = " << (iter->second.txPackets - iter->second.rxPackets) * 100.0 / iter->second.txPackets << "%");
+      NS_LOG_UNCOND("Delay = " << iter->second.delaySum);
       NS_LOG_UNCOND("Throughput = " << iter->second.rxBytes /
         (1000 * (iter->second.timeLastRxPacket.GetSeconds() - iter->second.timeFirstTxPacket.GetSeconds())) << " kbps\n");
     }
   }
 
   Simulator::Destroy();
-  return 0;
+
 }
 

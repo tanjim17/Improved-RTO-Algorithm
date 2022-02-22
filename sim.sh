@@ -23,16 +23,17 @@
 #     gnuplot -e "filename='non_bottle_delay_$i'; ran='$j'" plot.plt
 # done --nNodes=$i --nFlows=$i
 
-for((j=13;j<=13;j+=13))
+id="54"
+for((j=1;j<=3;j+=1))
 do
-    for((i=1;i<=8;i+=1))
+    for((i=1;i<=5;i+=1))
     do  
-        echo "cov = $i"
-        ./waf --run "scratch/wireless-demo-tcp --nNodes=2 --nFlows=2 --packetsPerSec=300 --maxRange=$i --delta=0.4"
+        echo "maxRange = $i"
+        ./waf --run "scratch/mywpan --nNodes=5 --nFlows=5 --delta=0.$j --maxRange=$i"
     done
-    gnuplot -e "filename='throughput'; metric='Throughput'; unit='KBPS'; ran='$j'" plot.plt
-    gnuplot -e "filename='delay'; metric='End-to-end delay';  unit='second'; ran='$j'" plot.plt
-    gnuplot -e "filename='delivery'; metric='Packet Delivery Ratio'; unit='%'; ran='$j'" plot.plt
-    gnuplot -e "filename='drop'; metric='Packet Drop Ratio'; unit='%'; ran='$j'" plot.plt
+    gnuplot -e "filename='throughput'; metric='Throughput'; unit='KBPS'; ran='${id}_$j'" plot.plt
+    gnuplot -e "filename='delay'; metric='End-to-end delay';  unit='second'; ran='${id}_$j'" plot.plt
+    gnuplot -e "filename='delivery'; metric='Packet Delivery Ratio'; unit='%'; ran='${id}_$j'" plot.plt
+    gnuplot -e "filename='drop'; metric='Packet Drop Ratio'; unit='%'; ran='${id}_$j'" plot.plt
     rm *.data
 done

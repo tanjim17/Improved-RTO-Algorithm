@@ -138,7 +138,6 @@ main(int argc, char* argv[])
     cmd.AddValue("packetsPerSec", "Packets per second", packetsPerSec);
     cmd.AddValue("delta", "Value of deltaX and deltaY in mobility grid position", delta);
     cmd.AddValue("flow_monitor", "Enable flow monitor", flow_monitor);
-    maxRange /= 5.0;
 
     cmd.Parse(argc, argv);
 
@@ -189,7 +188,7 @@ main(int argc, char* argv[])
         "MinY", DoubleValue(0.0),
         "DeltaX", DoubleValue(delta),
         "DeltaY", DoubleValue(delta),
-        "GridWidth", UintegerValue(3),
+        "GridWidth", UintegerValue(5),
         "LayoutType", StringValue("RowFirst"));
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
     mobility.Install(sourceNodes);
