@@ -105,6 +105,7 @@ protected:
   Time         m_estimatedRtt;            //!< Current estimate
   Time         m_estimatedVariation;   //!< Current estimate variation
   uint32_t     m_nSamples;                //!< Number of samples
+  Time         prev_rtt;                  // previous rtt
 };
 
 /**
@@ -183,7 +184,7 @@ private:
   void FloatingPointUpdate (Time m);
   double       m_alpha;       //!< Filter gain for average
   double       m_beta;        //!< Filter gain for variation
-
+  bool         modified_rtt_calc {false}; // if true, modified version of rtt calculation will be used
 };
 
 } // namespace ns3

@@ -141,6 +141,7 @@ int main (int argc, char *argv[])
   bool sack = true;
   std::string queue_disc_type = "ns3::PfifoFastQueueDisc";
   std::string recovery = "ns3::TcpClassicRecovery";
+  bool modified_rtt_calc = false;
 
 
   CommandLine cmd (__FILE__);
@@ -149,10 +150,10 @@ int main (int argc, char *argv[])
                 "TcpBic, TcpYeah, TcpIllinois, TcpWestwood, TcpWestwoodPlus, TcpLedbat, "
 		"TcpLp, TcpDctcp, TcpCubic, TcpBbr", transport_prot);
   cmd.AddValue ("error_p", "Packet error rate", error_p);
-  cmd.AddValue ("bandwidth", "Bottleneck bandwidth", bottleneck_bandwidth);
-  cmd.AddValue ("delay", "Bottleneck delay", bottleneck_delay);
-  cmd.AddValue ("access_bandwidth", "Access link bandwidth", edge_bandwidth);
-  cmd.AddValue ("access_delay", "Access link delay", edge_delay);
+  cmd.AddValue ("bottleneck_bandwidth", "Bottleneck bandwidth", bottleneck_bandwidth);
+  cmd.AddValue ("bottleneck_delay", "Bottleneck delay", bottleneck_delay);
+  cmd.AddValue ("edge_bandwidth", "Edge link bandwidth", edge_bandwidth);
+  cmd.AddValue ("edge_delay", "Edge link delay", edge_delay);
   cmd.AddValue ("tracing", "Flag to enable/disable tracing", tracing);
   cmd.AddValue ("prefix_name", "Prefix of output trace file", prefix_file_name);
   cmd.AddValue ("data", "Number of Megabytes of data to transmit", data_mbytes);
@@ -165,6 +166,7 @@ int main (int argc, char *argv[])
   cmd.AddValue ("queue_disc_type", "Queue disc type for gateway (e.g. ns3::CoDelQueueDisc)", queue_disc_type);
   cmd.AddValue ("sack", "Enable or disable SACK option", sack);
   cmd.AddValue ("recovery", "Recovery algorithm type to use (e.g., ns3::TcpPrrRecovery", recovery);
+  cmd.AddValue ("modified_rtt_calc", "Modification in RTT calculation", modified_rtt_calc);
   cmd.Parse (argc, argv);
 
   transport_prot = std::string ("ns3::") + transport_prot;
@@ -197,6 +199,11 @@ int main (int argc, char *argv[])
   Config::SetDefault ("ns3::TcpSocket::RcvBufSize", UintegerValue (1 << 21));
   Config::SetDefault ("ns3::TcpSocket::SndBufSize", UintegerValue (1 << 21));
   Config::SetDefault ("ns3::TcpSocketBase::Sack", BooleanValue (sack));
+
+  // Use modified version of RTT calculation if enabled
+  if(modified_rtt_calc){
+    Config::SetDefault("ns3::RttMeanDeviation::Modified_RTT_Calc", BooleanValue(modified_rtt_calc));
+  }
 
   Config::SetDefault ("ns3::TcpL4Protocol::RecoveryType",
                       TypeIdValue (TypeId::LookupByName (recovery)));

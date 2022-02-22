@@ -30,6 +30,7 @@
 
 #include "rtt-estimator.h"
 #include "ns3/double.h"
+#include "ns3/boolean.h"
 #include "ns3/log.h"
 
 namespace ns3 {
@@ -143,6 +144,10 @@ RttMeanDeviation::GetTypeId (void)
                    DoubleValue (0.25),
                    MakeDoubleAccessor (&RttMeanDeviation::m_beta),
                    MakeDoubleChecker<double> (0, 1))
+    .AddAttribute ("Modified_RTT_Calc", "Use modified version of rtt calculation",
+                   BooleanValue (false),
+                   MakeBooleanAccessor (&RttMeanDeviation::modified_rtt_calc),
+                   MakeBooleanChecker ());
   ;
   return tid;
 }
@@ -241,6 +246,14 @@ RttMeanDeviation::Measurement (Time m)
   NS_LOG_FUNCTION (this << m);
   if (m_nSamples)
     { 
+      if (modified_rtt_calc) {
+        double curr_rtt = m.GetDouble();
+        double p_rtt = prev_rtt.GetDouble();
+        double rtt_rate_of_change = (curr_rtt - p_rtt) / p_rtt;
+        m_alpha = m_alpha * (1 + rtt_rate_of_change);
+        m_beta = m_beta * (1 - rtt_rate_of_change); 
+      }
+
       // If both alpha and beta are reciprocal powers of two, updating can
       // be done with integer arithmetic according to Jacobson/Karels paper.
       // If not, since class Time only supports integer multiplication,
@@ -263,6 +276,7 @@ RttMeanDeviation::Measurement (Time m)
       NS_LOG_DEBUG ("(first sample) m_estimatedVariation += " << m);
     }
   m_nSamples++;
+  prev_rtt = m;
 }
 
 Ptr<RttEstimator> 
