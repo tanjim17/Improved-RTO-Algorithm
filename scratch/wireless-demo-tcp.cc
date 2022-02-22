@@ -126,7 +126,8 @@ main(int argc, char* argv[])
 {
     uint32_t nNodes = 4;
     uint32_t nFlows = 4;
-    uint32_t maxRange = 1;
+    double maxRange = 4;
+    double delta = 0.4;
     uint32_t packetsPerSec = 300;
     bool flow_monitor = true;
 
@@ -135,7 +136,9 @@ main(int argc, char* argv[])
     cmd.AddValue("nFlows", "Number of flows", nFlows);
     cmd.AddValue("maxRange", "Max coverage range", maxRange);
     cmd.AddValue("packetsPerSec", "Packets per second", packetsPerSec);
+    cmd.AddValue("delta", "Value of deltaX and deltaY in mobility grid position", delta);
     cmd.AddValue("flow_monitor", "Enable flow monitor", flow_monitor);
+    maxRange /= 5.0;
 
     cmd.Parse(argc, argv);
 
@@ -184,8 +187,8 @@ main(int argc, char* argv[])
     mobility.SetPositionAllocator("ns3::GridPositionAllocator",
         "MinX", DoubleValue(0.0),
         "MinY", DoubleValue(0.0),
-        "DeltaX", DoubleValue(0.5),
-        "DeltaY", DoubleValue(1),
+        "DeltaX", DoubleValue(delta),
+        "DeltaY", DoubleValue(delta),
         "GridWidth", UintegerValue(3),
         "LayoutType", StringValue("RowFirst"));
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
@@ -264,7 +267,7 @@ main(int argc, char* argv[])
                 NS_LOG_UNCOND("Sent packets = " << iter->second.txPackets);
                 NS_LOG_UNCOND("Received packets = " << iter->second.rxPackets);
                 NS_LOG_UNCOND("Dropped packets = " << iter->second.lostPackets);
-                NS_LOG_UNCOND("Delay = " << iter->second.delaySum);
+                NS_LOG_UNCOND("Delay sum = " << iter->second.delaySum.GetSeconds());
                 NS_LOG_UNCOND("Throughput = " << iter->second.rxBytes /
                     (1000 * (iter->second.timeLastRxPacket.GetSeconds() - iter->second.timeFirstTxPacket.GetSeconds())) << " kbps\n");
             }
@@ -272,10 +275,10 @@ main(int argc, char* argv[])
     }
 
     std::ofstream througputStream, delayStream, deliveryStream, dropStream;
-    writeToFile(througputStream, nNodes, throughput / nNodes, "throughput_nodes");
-    writeToFile(delayStream, nNodes, endToEndDelay / nNodes, "delay_nodes");
-    writeToFile(deliveryStream, nNodes, nPacketsReceived * 100 / (double)nPacketsSent, "delivery_nodes");
-    writeToFile(dropStream, nNodes, nPacketsDropped * 100 / (double)nPacketsSent, "drop_nodes");
+    writeToFile(througputStream, maxRange, throughput / nNodes, "throughput");
+    writeToFile(delayStream, maxRange, endToEndDelay / nPacketsReceived, "delay");
+    writeToFile(deliveryStream, maxRange, nPacketsReceived * 100 / (double)nPacketsSent, "delivery");
+    writeToFile(dropStream, maxRange, nPacketsDropped * 100 / (double)nPacketsSent, "drop");
 
     Simulator::Destroy();
     return 0;
