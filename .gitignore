@@ -3,19 +3,15 @@
 
 # But not these files...
 !.gitignore
-!sim.sh
-!plot.plt
+!Report.pdf
 
 # ...even if they are in subdirectories
 !*/
 
 # if the files to be tracked are in subdirectories
 !/scratch/rto-comp-demo.cc
-!/scratch/wireless-demo.cc
-!/scratch/wireless-demo-tcp.cc
-!/scratch/wireless-low-rate-demo.cc
-!/scratch/example-ping-lr-wpan-mesh-under.cc
 !/src/internet/model/tcp-socket-base.cc
 !/src/internet/model/tcp-socket-base.h
 !/src/internet/model/rtt-estimator.cc
 !/src/internet/model/rtt-estimator.h
+!/README.md
